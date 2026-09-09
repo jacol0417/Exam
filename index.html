@@ -94,7 +94,6 @@
                     allQuestions = globalLoadedQuestions;
                     updateLoadedStatus();
 
-                    // 重開網頁時，自動重新隨機產生 20 題
                     if (allQuestions.length >= 20) {
                         startNewQuiz();
                     }
@@ -123,10 +122,6 @@
         };
 
         // 讀取 Excel 題庫
-        // Excel：
-        // A 欄 = 答案
-        // B 欄 = 選擇題題目
-        // C 欄 = 解析（若有）
         function handleFileSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -142,8 +137,6 @@
 
                     const allLoadedQuestions = [];
 
-                    // 保持原程式從第 3 列開始讀取題目的邏輯。
-                    // 若第一、二列為標題/欄位說明，會自動略過。
                     for (let rowIndex = 2; rowIndex < rawRows.length; rowIndex++) {
                         const row = rawRows[rowIndex];
                         if (!row) continue;
@@ -156,7 +149,6 @@
                             ? String(row[1]).trim()
                             : "";
 
-                        // 保留原本的解析功能；若 C 欄沒有解析則為空字串。
                         const expl = row[2] !== undefined && row[2] !== null
                             ? String(row[2]).trim()
                             : "";
@@ -194,7 +186,6 @@
                     alert("解析 Excel 失敗，請確認欄位格式：A 欄為答案、B 欄為選擇題題目、C 欄可放解析");
                 }
 
-                // 讓同一個檔案可以再次選取
                 e.target.value = "";
             };
 
@@ -219,7 +210,6 @@
                 return;
             }
 
-            // Fisher-Yates 洗牌，取前 20 題
             const shuffled = [...allQuestions];
 
             for (let i = shuffled.length - 1; i > 0; i--) {
@@ -236,10 +226,13 @@
 
             document.getElementById('btnNext').disabled = false;
             document.getElementById('tvQuestion').style.display = 'block';
+            
             const answersContainer = document.getElementById('rgAnswersContainer');
+            answersContainer.innerHTML = "";
             answersContainer.style.display = 'flex';
             answersContainer.style.flexDirection = 'column';
             answersContainer.style.alignItems = 'stretch';
+            
             document.getElementById('btnNext').style.display = 'block';
             document.getElementById('btnFinish').style.display = 'block';
             document.getElementById('tvProgress').style.display = 'block';
@@ -260,8 +253,7 @@
             document.getElementById('tvProgress').innerText =
                 getString.quiz_progress(currentIndex + 1, currentQuizList.length);
 
-            // 題面前段文字：去除選項內容，只保留題目。
-            // 支援 (1)、(2) 或（1）、（2）或 (一)、（一）等格式。
+            // 裁切題目：遇到 (1)、（1）、(一)、（一）就裁切
             const firstOptionRegex = /[（(]([0-9]+|[一二三四五六七八九十]+)[）)]/;
             const matchIndex = q.questionText.search(firstOptionRegex);
 
@@ -275,7 +267,7 @@
             const container = document.getElementById('rgAnswersContainer');
             container.innerHTML = "";
 
-            // 解析選擇題選項：支援數字及中文數字，使用 [\s\S]*? 防止包含換行時截斷選項
+            // 正則解析選項
             const pattern = /[（(]([0-9]+|[一二三四五六七八九十]+)[）)]\s*([\s\S]*?)(?=\s*[（(](?:[0-9]+|[一二三四五六七八九十]+)[）)]|$)/g;
             let match;
             let hasOptions = false;
@@ -286,7 +278,6 @@
                 let rawId = match[1].trim();
                 const optionText = match[2].trim();
 
-                // 如果是中文數字，自動轉為阿拉伯數字 (1, 2, 3...) 以便與答案比對
                 const optionId = zhToNum[rawId] || rawId;
 
                 if (optionText !== "") {
@@ -299,7 +290,6 @@
                 }
             }
 
-            // 若題目本身沒有選項標記，維持原程式的 fallback 行為
             if (!hasOptions) {
                 for (let i = 1; i <= 5; i++) {
                     addRadioButton(String(i), String(i), q.userAnswer);
@@ -434,4 +424,3 @@
     </script>
 </body>
 </html>
-
