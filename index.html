@@ -8,6 +8,29 @@
     <script src="js/xlsx.full.min.js"></script>
 </head>
 <body>
+    <style>
+        /* 選擇題固定直向排列：一個選項一行 */
+        #rgAnswersContainer {
+            display: flex;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            width: 100%;
+        }
+
+        #rgAnswersContainer label {
+            display: flex;
+            align-items: flex-start;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        #rgAnswersContainer label span {
+            flex: 1;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+    </style>
 
     <div class="app-container" style="position: relative; padding-bottom: 30px;">
         <div class="header-zone">
@@ -55,7 +78,7 @@
         let currentIndex = 0;
 
         // 程式版本
-        const CURRENT_VERSION = 'quiz-app-v5';
+        const CURRENT_VERSION = 'quiz-app-v6';
 
         window.onload = function() {
             const vTag = document.getElementById('version-tag');
@@ -70,6 +93,11 @@
                     globalLoadedQuestions = JSON.parse(savedData);
                     allQuestions = globalLoadedQuestions;
                     updateLoadedStatus();
+
+                    // 重開網頁時，自動重新隨機產生 20 題
+                    if (allQuestions.length >= 20) {
+                        startNewQuiz();
+                    }
                 } catch (e) {
                     console.error("快取解析失敗，清除快取", e);
                     localStorage.removeItem("globalLoadedQuestions");
@@ -208,7 +236,10 @@
 
             document.getElementById('btnNext').disabled = false;
             document.getElementById('tvQuestion').style.display = 'block';
-            document.getElementById('rgAnswersContainer').style.display = 'flex';
+            const answersContainer = document.getElementById('rgAnswersContainer');
+            answersContainer.style.display = 'flex';
+            answersContainer.style.flexDirection = 'column';
+            answersContainer.style.alignItems = 'stretch';
             document.getElementById('btnNext').style.display = 'block';
             document.getElementById('btnFinish').style.display = 'block';
             document.getElementById('tvProgress').style.display = 'block';
