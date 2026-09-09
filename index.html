@@ -6,29 +6,22 @@
     <title>刷題程式</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/xlsx.full.min.js"></script>
-    <script src="js/quizManager.js"></script>
 </head>
 <body>
-
-    <img id="ivFullVictory" alt="Victory" onclick="this.style.display='none'">
 
     <div class="app-container" style="position: relative; padding-bottom: 30px;">
         <div class="header-zone">
             <h1 style="font-size: 22px; margin: 0;">刷題程式</h1>
-            
+
             <div class="top-action-container">
                 <input type="file" id="btnLoadFile" accept=".xlsx, .xls" style="display:none;">
                 <button id="lblLoadFile" onclick="document.getElementById('btnLoadFile').click()">讀取題庫</button>
             </div>
-
-            <div id="ivLogo" onclick="cycleCategory()">A</div>
         </div>
 
         <div id="tvProgress">尚未載入題庫</div>
-        
-        <hr style="border: 0; border-top: 1px solid #e8e8ed; margin: 15px 0;">
 
-        <img id="ivDecoration" style="display:none;" alt="Decoration">
+        <hr style="border: 0; border-top: 1px solid #e8e8ed; margin: 15px 0;">
 
         <div id="tvQuestion" style="font-size: 18px; font-weight: 600; margin-bottom: 15px;"></div>
         <div id="rgAnswersContainer"></div>
@@ -39,79 +32,61 @@
             <button id="btnNext" style="display:none;">下一題</button>
             <button id="btnFinish" style="display:none;">結束測驗</button>
         </div>
-        
+
         <button id="btnRestart" style="display:none; background-color: #34c759; width: 100%;">重新產生測驗</button>
 
         <div id="version-tag" style="position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #8e8e93; font-family: -apple-system, BlinkMacSystemFont, sans-serif; pointer-events: none;"></div>
-    </div> <script>
-        // 💡 取代 strings.xml 的字串語言包
+    </div>
+
+    <script>
+        // 顯示文字
         const getString = {
-            category_name_a: "A 預檢", category_name_b: "B 修護", category_name_c: "C 幕僚",
-            quiz_progress_with_category: (index, total, cat) => `第 ${index} 題 / 共 ${total} 題    [ 當前類別：${cat} ]`,
+            quiz_progress: (index, total) => `第 ${index} 題 / 共 ${total} 題`,
             quiz_wrong_explanation: (ans, expl) => `正確答案： ${ans} \n解析： ${expl}`,
             quiz_wrong_count_text: (count) => `<p style='text-align:center;'>答錯題數：<font color='red'>${count} 題</font></p>`,
-            category_switched_hint: (cat) => `已切換至 ${cat} ，請匯入題庫檔案`,
-            category_empty_hint: (cat) => `當前類別：${cat} (請先讀取檔案)`,
-            category_loaded_toast: (cat, tfCount, mcCount) => `已載入 ${cat} 題庫！是非：${tfCount} 題，選擇：${mcCount} 題`,
-            category_insufficient_error: (cat) => `${cat} 題庫數量不足！(是非與選擇皆需各10題以上)`,
-            category_insufficient_hint: (cat) => `當前類別：${cat} (題庫不足)`
+            insufficient_error: "題庫數量不足！至少需要 20 題選擇題。",
+            insufficient_hint: "題庫不足，請匯入至少 20 題的選擇題題庫。"
         };
 
-        // 全域變數定義
-        let allTrueFalseQuestions = [];
-        let allSelectQuestions = [];
+        // 全域變數
+        let allQuestions = [];
         let globalLoadedQuestions = [];
-        let currentCategory = "A";
-        let quizPoolManager = null;
         let currentQuizList = [];
         let currentIndex = 0;
-        
-        // 慶祝與隨機自然圖片清單 (圖片放置於 images/ 資料夾下)
-        const celebrateImages = Array.from({length: 23}, (_, i) => `images/celebrate${String(i+1).padStart(3, '0')}.webp`);
-        const decoImageResources = Array.from({length: 240}, (_, i) => `images/nature${String(i+1).padStart(3, '0')}.webp`);
-        // 🌟 目前程式版本號 (純字串宣告，安全無害)
-        const CURRENT_VERSION = 'quiz-app-v4';
 
-        function getCategoryDisplayName() {
-            if (currentCategory === "A") return getString.category_name_a;
-            if (currentCategory === "B") return getString.category_name_b;
-            return getString.category_name_c;
-        }
+        // 程式版本
+        const CURRENT_VERSION = 'quiz-app-v5';
 
-        // 頁面初次載入時的生命週期 (原 onCreate 自動加載)
         window.onload = function() {
-            // 🌟 鎖在 onload 第一行：等畫面都準備好了，才把版本號塞進右下角
             const vTag = document.getElementById('version-tag');
             if (vTag) {
                 vTag.innerText = CURRENT_VERSION;
             }
 
-            document.getElementById('ivLogo').innerText = currentCategory;
-            
-            // 從 LocalStorage 嘗試抓取上次存下來的完整題庫結構
+            // 從 LocalStorage 載入上次保存的題庫
             const savedData = localStorage.getItem("globalLoadedQuestions");
             if (savedData) {
                 try {
                     globalLoadedQuestions = JSON.parse(savedData);
-                    filterQuestionsByCategory(globalLoadedQuestions);
+                    allQuestions = globalLoadedQuestions;
+                    updateLoadedStatus();
                 } catch (e) {
                     console.error("快取解析失敗，清除快取", e);
                     localStorage.removeItem("globalLoadedQuestions");
+                    document.getElementById('tvProgress').innerText = "尚未載入題庫";
                 }
-            } else {
-                document.getElementById('tvProgress').innerText = getString.category_empty_hint(getCategoryDisplayName());
             }
 
-            // 綁定控制按鈕事件
+            // 綁定事件
             document.getElementById('btnLoadFile').addEventListener('change', handleFileSelect);
             document.getElementById('btnNext').onclick = clickNext;
             document.getElementById('btnFinish').onclick = clickFinish;
-            document.getElementById('btnRestart').onclick = () => {
+            document.getElementById('btnRestart').onclick = function() {
                 startNewQuiz();
                 alert("已重新產生測驗！");
             };
 
-            // 💡 註冊 PWA Service Worker 實現離線功能
+            // 註冊 PWA Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').catch(err => {
                     console.error('❌ 離線快取註冊失敗：', err);
@@ -119,102 +94,116 @@
             }
         };
 
-        // 切換類別 A -> B -> C -> A
-        function cycleCategory() {
-            currentCategory = currentCategory === "A" ? "B" : (currentCategory === "B" ? "C" : "A");
-            document.getElementById('ivLogo').innerText = currentCategory;
-            const displayName = getCategoryDisplayName();
-
-            if (globalLoadedQuestions.length > 0) {
-                filterQuestionsByCategory(globalLoadedQuestions);
-            } else {
-                alert(getString.category_switched_hint(displayName));
-                document.getElementById('tvProgress').innerText = getString.category_empty_hint(displayName);
-            }
-        }
-
-        // 讀取 Excel 檔案與資料清洗
+        // 讀取 Excel 題庫
+        // Excel：
+        // A 欄 = 答案
+        // B 欄 = 選擇題題目
+        // C 欄 = 解析（若有）
         function handleFileSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
+
             reader.onload = function(event) {
                 try {
                     const data = new Uint8Array(event.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
                     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
                     const allLoadedQuestions = [];
 
+                    // 保持原程式從第 3 列開始讀取題目的邏輯。
+                    // 若第一、二列為標題/欄位說明，會自動略過。
                     for (let rowIndex = 2; rowIndex < rawRows.length; rowIndex++) {
                         const row = rawRows[rowIndex];
                         if (!row) continue;
 
-                        const ans = row[2] ? String(row[2]).trim().replace(".0", "") : "";
-                        const qText = row[4] ? String(row[4]).trim() : "";
-                        const expl = row[5] ? String(row[5]).trim() : "";
+                        const ans = row[0] !== undefined && row[0] !== null
+                            ? String(row[0]).trim().replace(/\.0$/, "")
+                            : "";
 
-                        const hasVInH = row[7] ? String(row[7]).trim().toUpperCase() === "V" : false;
-                        const hasVInI = row[8] ? String(row[8]).trim().toUpperCase() === "V" : false;
-                        const hasVInJ = row[9] ? String(row[9]).trim().toUpperCase() === "V" : false;
+                        const qText = row[1] !== undefined && row[1] !== null
+                            ? String(row[1]).trim()
+                            : "";
+
+                        // 保留原本的解析功能；若 C 欄沒有解析則為空字串。
+                        const expl = row[2] !== undefined && row[2] !== null
+                            ? String(row[2]).trim()
+                            : "";
 
                         if (qText !== "" && ans !== "") {
-                            const isTF = ans.toUpperCase() === "O" || ans.toUpperCase() === "X";
                             allLoadedQuestions.push({
-                                id: rowIndex + 1, questionText: qText, answer: ans, explanation: expl,
-                                isTrueFalse: isTF, userAnswer: "", isClassA: hasVInH, isClassB: hasVInI, isClassC: hasVInJ
+                                id: rowIndex + 1,
+                                questionText: qText,
+                                answer: ans,
+                                explanation: expl,
+                                userAnswer: ""
                             });
                         }
                     }
 
                     globalLoadedQuestions = allLoadedQuestions;
-                    localStorage.setItem("globalLoadedQuestions", JSON.stringify(globalLoadedQuestions));
-                    filterQuestionsByCategory(globalLoadedQuestions);
+                    allQuestions = allLoadedQuestions;
+
+                    localStorage.setItem(
+                        "globalLoadedQuestions",
+                        JSON.stringify(globalLoadedQuestions)
+                    );
+
+                    updateLoadedStatus();
+
+                    if (allQuestions.length >= 20) {
+                        startNewQuiz();
+                    } else {
+                        alert(getString.insufficient_error);
+                        document.getElementById('tvProgress').innerText = getString.insufficient_hint;
+                    }
 
                 } catch (err) {
                     console.error(err);
-                    alert("解析 Excel 失敗，請確認欄位格式 C:答案 E:題目 F:解答");
+                    alert("解析 Excel 失敗，請確認欄位格式：A 欄為答案、B 欄為選擇題題目、C 欄可放解析");
                 }
+
+                // 讓同一個檔案可以再次選取
+                e.target.value = "";
             };
+
             reader.readAsArrayBuffer(file);
         }
 
-        // 依據類別篩選題目
-        function filterQuestionsByCategory(sourceList) {
-            allTrueFalseQuestions = [];
-            allSelectQuestions = [];
-
-            sourceList.forEach(q => {
-                const isTargetCategory = currentCategory === "A" ? q.isClassA : (currentCategory === "B" ? q.isClassB : q.isClassC);
-                if (isTargetCategory) {
-                    q.userAnswer = ""; // 重置歷史紀錄
-                    if (q.isTrueFalse) allTrueFalseQuestions.push(q); else allSelectQuestions.push(q);
-                }
-            });
-
-            const displayName = getCategoryDisplayName();
-            alert(getString.category_loaded_toast(currentCategory, allTrueFalseQuestions.length, allSelectQuestions.length));
-
-            if (allTrueFalseQuestions.length >= 10 && allSelectQuestions.length >= 10) {
-                if (!quizPoolManager) {
-                    quizPoolManager = new QuizPoolManager(allTrueFalseQuestions, allSelectQuestions);
-                } else {
-                    quizPoolManager.updatePools(allTrueFalseQuestions, allSelectQuestions);
-                }
-                startNewQuiz();
+        // 更新題庫狀態
+        function updateLoadedStatus() {
+            if (allQuestions.length >= 20) {
+                document.getElementById('tvProgress').innerText =
+                    `題庫已載入，共 ${allQuestions.length} 題`;
             } else {
-                alert(getString.category_insufficient_error(displayName));
-                document.getElementById('tvProgress').innerText = getString.category_insufficient_hint(displayName);
+                document.getElementById('tvProgress').innerText =
+                    `題庫不足，共 ${allQuestions.length} 題`;
             }
         }
 
-        // 初始化一場新測驗
+        // 隨機產生 20 題
         function startNewQuiz() {
-            if (!quizPoolManager) return;
+            if (allQuestions.length < 20) {
+                alert(getString.insufficient_error);
+                return;
+            }
 
-            currentQuizList = quizPoolManager.generate20Questions();
+            // Fisher-Yates 洗牌，取前 20 題
+            const shuffled = [...allQuestions];
+
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            currentQuizList = shuffled.slice(0, 20).map(q => ({
+                ...q,
+                userAnswer: ""
+            }));
+
             currentIndex = 0;
 
             document.getElementById('btnNext').disabled = false;
@@ -223,13 +212,6 @@
             document.getElementById('btnNext').style.display = 'block';
             document.getElementById('btnFinish').style.display = 'block';
             document.getElementById('tvProgress').style.display = 'block';
-            document.getElementById('ivFullVictory').style.display = 'none';
-
-            const ivDecoration = document.getElementById('ivDecoration');
-            if (ivDecoration && decoImageResources.length > 0) {
-                ivDecoration.src = decoImageResources[Math.floor(Math.random() * decoImageResources.length)];
-                ivDecoration.style.display = 'block';
-            }
 
             document.getElementById('tvSummaryResult').style.display = 'none';
             document.getElementById('tvWrongExplanation').style.display = 'none';
@@ -238,87 +220,106 @@
             displayQuestion();
         }
 
-        // 渲染考題畫面
+        // 顯示目前題目
         function displayQuestion() {
             if (currentQuizList.length === 0) return;
+
             const q = currentQuizList[currentIndex];
 
-            document.getElementById('tvProgress').innerText = getString.quiz_progress_with_category(currentIndex + 1, currentQuizList.length, getCategoryDisplayName());
+            document.getElementById('tvProgress').innerText =
+                getString.quiz_progress(currentIndex + 1, currentQuizList.length);
 
-            const firstOptionRegex = /\(\d+\)/;
+            // 題目前段文字：去除選項內容，只保留題目。
+            // 支援 (1)、(2) 或（1）、（2）等格式。
+            const firstOptionRegex = /[（(]\d+[）)]/;
             const matchIndex = q.questionText.search(firstOptionRegex);
-            document.getElementById('tvQuestion').innerText = matchIndex !== -1 ? q.questionText.substring(0, matchIndex).trim() : q.questionText;
+
+            document.getElementById('tvQuestion').innerText =
+                matchIndex !== -1
+                    ? q.questionText.substring(0, matchIndex).trim()
+                    : q.questionText;
 
             document.getElementById('tvWrongExplanation').style.display = 'none';
+
             const container = document.getElementById('rgAnswersContainer');
-            container.innerHTML = ""; 
+            container.innerHTML = "";
 
-            // 💡 將使用者先前選過的答案傳入單選按鈕中渲染，保持狀態
-            if (q.isTrueFalse) {
-                addRadioButton("O", "O", q.userAnswer);
-                addRadioButton("X", "X", q.userAnswer);
-            } else {
-                const pattern = /\(([0-9]+)\)\s*(.*?)(?=\s*\(\d+\)|$)/g;
-                let match;
-                let hasOptions = false;
+            // 解析選擇題選項
+            const pattern = /[（(]([0-9]+)[）)]\s*(.*?)(?=\s*[（(]\d+[）)]|$)/g;
+            let match;
+            let hasOptions = false;
 
-                while ((match = pattern.exec(q.questionText)) !== null) {
-                    const optionId = match[1];
-                    const optionText = match[2].trim();
-                    addRadioButton(`${optionId}. ${optionText}`, optionId, q.userAnswer);
-                    hasOptions = true;
-                }
+            while ((match = pattern.exec(q.questionText)) !== null) {
+                const optionId = match[1];
+                const optionText = match[2].trim();
 
-                if (!hasOptions) {
-                    for (let i = 1; i <= 5; i++) addRadioButton(String(i), String(i), q.userAnswer);
-                }
+                addRadioButton(
+                    `${optionId}. ${optionText}`,
+                    optionId,
+                    q.userAnswer
+                );
+
+                hasOptions = true;
             }
 
-            // 每換一題隨機更新一次 nature 圖片
-            const ivDecoration = document.getElementById('ivDecoration');
-            if (ivDecoration && decoImageResources.length > 0) {
-                ivDecoration.src = decoImageResources[Math.floor(Math.random() * decoImageResources.length)];
+            // 若題目本身沒有選項標記，維持原程式的 fallback 行為
+            if (!hasOptions) {
+                for (let i = 1; i <= 5; i++) {
+                    addRadioButton(String(i), String(i), q.userAnswer);
+                }
             }
         }
 
-        // 💡 修正：增加 savedUserAnswer 參數，讓使用者點擊選項時即時寫入記憶體
+        // 建立選項
         function addRadioButton(labelText, value, savedUserAnswer) {
             const container = document.getElementById('rgAnswersContainer');
             const label = document.createElement('label');
-            const isChecked = savedUserAnswer === value ? "checked" : "";
-            
-            label.innerHTML = `<input type="radio" name="quiz_ans" value="${value}" ${isChecked}> <span>${labelText}</span>`;
-            
-            // 💡 當使用者點擊此 label 選項時，立刻同步更新目前題目的紀錄
-            label.onclick = function() {
+
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'quiz_ans';
+            input.value = value;
+            input.checked = savedUserAnswer === value;
+
+            const span = document.createElement('span');
+            span.textContent = labelText;
+
+            input.addEventListener('change', function() {
                 if (currentQuizList.length > 0) {
                     currentQuizList[currentIndex].userAnswer = value;
                 }
-            };
-            
+            });
+
+            label.appendChild(input);
+            label.appendChild(span);
             container.appendChild(label);
         }
 
-        // 檢查當前選擇的答案
+        // 檢查目前答案
         function checkCurrentAnswer() {
             if (currentQuizList.length === 0) return;
+
             const q = currentQuizList[currentIndex];
             const selectedRadio = document.querySelector('input[name="quiz_ans"]:checked');
-            
             const userAns = selectedRadio ? selectedRadio.value : "";
+
             q.userAnswer = userAns;
 
             const tvWrongExpl = document.getElementById('tvWrongExplanation');
+
             if (userAns.toUpperCase() !== q.answer.toUpperCase()) {
-                tvWrongExpl.innerText = getString.quiz_wrong_explanation(q.answer, q.explanation);
+                tvWrongExpl.innerText =
+                    getString.quiz_wrong_explanation(q.answer, q.explanation);
                 tvWrongExpl.style.display = 'block';
             } else {
                 tvWrongExpl.style.display = 'none';
             }
         }
 
+        // 下一題
         function clickNext() {
             checkCurrentAnswer();
+
             if (currentIndex >= currentQuizList.length - 1) {
                 alert("試題結束，請點擊結束測驗查看結果");
                 document.getElementById('btnNext').disabled = true;
@@ -328,42 +329,47 @@
             }
         }
 
-        // 統整計分並顯示成果
+        // 統整計分
         function clickFinish() {
             checkCurrentAnswer();
+
             if (currentQuizList.length === 0) return;
 
             let wrongCount = 0;
+
             currentQuizList.forEach(q => {
-                if (q.userAnswer.toUpperCase() !== q.answer.toUpperCase()) wrongCount++;
+                if (q.userAnswer.toUpperCase() !== q.answer.toUpperCase()) {
+                    wrongCount++;
+                }
             });
 
             let summaryText = "<h2 style='text-align:center;'>測驗結果</h2>";
 
             if (wrongCount === 0) {
                 summaryText += "<p style='text-align:center; color: #34c759; font-size: 20px;'><b>恭喜你！全部答對！</b></p>";
-                document.getElementById('ivDecoration').style.display = 'none';
-                
-                const ivFullVictory = document.getElementById('ivFullVictory');
-                if (ivFullVictory && celebrateImages.length > 0) {
-                    ivFullVictory.src = celebrateImages[Math.floor(Math.random() * celebrateImages.length)];
-                    ivFullVictory.style.display = 'block';
-                }
             } else {
                 summaryText += getString.quiz_wrong_count_text(wrongCount);
+
                 let errorReport = "";
-                
+
                 currentQuizList.forEach((q, index) => {
                     if (q.userAnswer.toUpperCase() !== q.answer.toUpperCase()) {
                         errorReport += `<div style='margin-bottom: 15px; border-bottom: 1px solid #e8e8ed; padding-bottom:10px;'>`;
-                        errorReport += `<b>第 ${index + 1} 題：</b>${q.questionText}<br>`;
-                        errorReport += `您的答案：<font color='red'>${q.userAnswer || "未作答"}</font><br>`;
-                        errorReport += `正確解答：<font color='green'><b>${q.answer}</b></font><br>`;
+                        errorReport += `<b>第 ${index + 1} 題：</b>${escapeHtml(q.questionText)}<br>`;
+                        errorReport += `您的答案：<font color='red'>${escapeHtml(q.userAnswer || "未作答")}</font><br>`;
+                        errorReport += `正確解答：<font color='green'><b>${escapeHtml(q.answer)}</b></font><br>`;
+
+                        if (q.explanation) {
+                            errorReport += `解析：${escapeHtml(q.explanation)}<br>`;
+                        }
+
                         errorReport += `</div>`;
                     }
                 });
-                summaryText += "<hr style='border:0; border-top:1px solid #d2d2d7;'><h3>錯題檢討：</h3>" + errorReport;
-                document.getElementById('ivDecoration').style.display = 'none';
+
+                summaryText +=
+                    "<hr style='border:0; border-top:1px solid #d2d2d7;'><h3>錯題檢討：</h3>" +
+                    errorReport;
             }
 
             const tvSummaryResult = document.getElementById('tvSummaryResult');
@@ -377,6 +383,16 @@
             document.getElementById('tvProgress').style.display = 'none';
             document.getElementById('tvWrongExplanation').style.display = 'none';
             document.getElementById('btnRestart').style.display = 'block';
+        }
+
+        // HTML 安全處理
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
     </script>
 </body>
