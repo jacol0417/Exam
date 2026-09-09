@@ -6,36 +6,201 @@
     <title>刷題程式</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/xlsx.full.min.js"></script>
-</head>
-<body>
     <style>
-        /* 選擇題固定直向排列：一個選項一行 */
+        :root {
+            --primary-color: #007aff;
+            --primary-hover: #0056b3;
+            --bg-color: #f2f2f7;
+            --card-bg: #ffffff;
+            --text-main: #1c1c1e;
+            --text-sub: #8e8e93;
+            --border-color: #e5e5ea;
+            --success-color: #34c759;
+            --danger-color: #ff3b30;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            box-sizing: border-box;
+            position: relative;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-zone {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .header-zone h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        #tvProgress {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        /* 按鈕樣式優化 */
+        button {
+            border: none;
+            outline: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #lblLoadFile {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+        }
+
+        #lblLoadFile:hover {
+            background-color: #e5e5ea;
+        }
+
+        #tvQuestion {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        /* 選項選項卡化 */
         #rgAnswersContainer {
             display: flex;
             flex-direction: column !important;
-            align-items: stretch !important;
+            gap: 12px;
             width: 100%;
+            margin-bottom: 20px;
         }
 
         #rgAnswersContainer label {
             display: flex;
-            align-items: flex-start;
-            width: 100%;
+            align-items: center;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border-color);
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
             box-sizing: border-box;
-            margin-bottom: 10px;
+        }
+
+        #rgAnswersContainer label:hover {
+            border-color: var(--primary-color);
+            background-color: #f8f9ff;
+        }
+
+        #rgAnswersContainer input[type="radio"] {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
         }
 
         #rgAnswersContainer label span {
             flex: 1;
+            font-size: 16px;
+            color: var(--text-main);
             white-space: normal;
             overflow-wrap: anywhere;
         }
+
+        /* 底部動作區域 */
+        .bottom-action-container {
+            display: flex;
+            gap: 12px;
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .bottom-action-container button {
+            flex: 1;
+            padding: 12px;
+        }
+
+        #btnNext {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #btnNext:hover {
+            background-color: var(--primary-hover);
+        }
+
+        #btnNext:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+        }
+
+        #btnFinish {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        #btnFinish:hover {
+            background-color: #e5e5ea;
+        }
+
+        #tvWrongExplanation {
+            background-color: #fff2f2;
+            border-left: 4px solid var(--danger-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #d32f2f;
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            white-space: pre-line;
+        }
+
+        #btnRestart {
+            background-color: var(--success-color);
+            color: white;
+            padding: 14px;
+            margin-top: 15px;
+        }
+
+        #version-tag {
+            position: absolute;
+            bottom: 8px;
+            right: 16px;
+            font-size: 11px;
+            color: var(--text-sub);
+            pointer-events: none;
+        }
     </style>
-
-    <div class="app-container" style="position: relative; padding-bottom: 30px;">
+</head>
+<body>
+    <div class="app-container">
         <div class="header-zone">
-            <h1 style="font-size: 22px; margin: 0;">刷題程式</h1>
-
+            <h1>刷題程式</h1>
             <div class="top-action-container">
                 <input type="file" id="btnLoadFile" accept=".xlsx, .xls" style="display:none;">
                 <button id="lblLoadFile" onclick="document.getElementById('btnLoadFile').click()">讀取題庫</button>
@@ -43,10 +208,9 @@
         </div>
 
         <div id="tvProgress">尚未載入題庫</div>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0 0 20px 0;">
 
-        <hr style="border: 0; border-top: 1px solid #e8e8ed; margin: 15px 0;">
-
-        <div id="tvQuestion" style="font-size: 18px; font-weight: 600; margin-bottom: 15px;"></div>
+        <div id="tvQuestion"></div>
         <div id="rgAnswersContainer"></div>
         <div id="tvWrongExplanation" style="display:none;"></div>
         <div id="tvSummaryResult" style="display:none;"></div>
@@ -56,13 +220,12 @@
             <button id="btnFinish" style="display:none;">結束測驗</button>
         </div>
 
-        <button id="btnRestart" style="display:none; background-color: #34c759; width: 100%;">重新產生測驗</button>
+        <button id="btnRestart" style="display:none;">重新產生測驗</button>
 
-        <div id="version-tag" style="position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #8e8e93; font-family: -apple-system, BlinkMacSystemFont, sans-serif; pointer-events: none;"></div>
+        <div id="version-tag"></div>
     </div>
 
     <script>
-        // 顯示文字
         const getString = {
             quiz_progress: (index, total) => `第 ${index} 題 / 共 ${total} 題`,
             quiz_wrong_explanation: (ans, expl) => `正確答案： ${ans} \n解析： ${expl}`,
@@ -71,22 +234,17 @@
             insufficient_hint: "題庫不足，請匯入至少 20 題的選擇題題庫。"
         };
 
-        // 全域變數
         let allQuestions = [];
         let globalLoadedQuestions = [];
         let currentQuizList = [];
         let currentIndex = 0;
 
-        // 程式版本
-        const CURRENT_VERSION = 'quiz-app-v6';
+        const CURRENT_VERSION = 'quiz-app-v7';
 
         window.onload = function() {
             const vTag = document.getElementById('version-tag');
-            if (vTag) {
-                vTag.innerText = CURRENT_VERSION;
-            }
+            if (vTag) vTag.innerText = CURRENT_VERSION;
 
-            // 從 LocalStorage 載入上次保存的題庫
             const savedData = localStorage.getItem("globalLoadedQuestions");
             if (savedData) {
                 try {
@@ -104,7 +262,6 @@
                 }
             }
 
-            // 綁定事件
             document.getElementById('btnLoadFile').addEventListener('change', handleFileSelect);
             document.getElementById('btnNext').onclick = clickNext;
             document.getElementById('btnFinish').onclick = clickFinish;
@@ -113,7 +270,6 @@
                 alert("已重新產生測驗！");
             };
 
-            // 註冊 PWA Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').catch(err => {
                     console.error('❌ 離線快取註冊失敗：', err);
@@ -121,7 +277,6 @@
             }
         };
 
-        // 讀取 Excel 題庫
         function handleFileSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -192,7 +347,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // 更新題庫狀態
         function updateLoadedStatus() {
             if (allQuestions.length >= 20) {
                 document.getElementById('tvProgress').innerText =
@@ -203,7 +357,6 @@
             }
         }
 
-        // 隨機產生 20 題
         function startNewQuiz() {
             if (allQuestions.length < 20) {
                 alert(getString.insufficient_error);
@@ -231,8 +384,7 @@
             answersContainer.innerHTML = "";
             answersContainer.style.display = 'flex';
             answersContainer.style.flexDirection = 'column';
-            answersContainer.style.alignItems = 'stretch';
-            
+
             document.getElementById('btnNext').style.display = 'block';
             document.getElementById('btnFinish').style.display = 'block';
             document.getElementById('tvProgress').style.display = 'block';
@@ -244,7 +396,6 @@
             displayQuestion();
         }
 
-        // 顯示目前題目
         function displayQuestion() {
             if (currentQuizList.length === 0) return;
 
@@ -253,7 +404,6 @@
             document.getElementById('tvProgress').innerText =
                 getString.quiz_progress(currentIndex + 1, currentQuizList.length);
 
-            // 裁切題目：遇到 (1)、（1）、(一)、（一）就裁切
             const firstOptionRegex = /[（(]([0-9]+|[一二三四五六七八九十]+)[）)]/;
             const matchIndex = q.questionText.search(firstOptionRegex);
 
@@ -267,7 +417,6 @@
             const container = document.getElementById('rgAnswersContainer');
             container.innerHTML = "";
 
-            // 正則解析選項
             const pattern = /[（(]([0-9]+|[一二三四五六七八九十]+)[）)]\s*([\s\S]*?)(?=\s*[（(](?:[0-9]+|[一二三四五六七八九十]+)[）)]|$)/g;
             let match;
             let hasOptions = false;
@@ -277,7 +426,6 @@
             while ((match = pattern.exec(q.questionText)) !== null) {
                 let rawId = match[1].trim();
                 const optionText = match[2].trim();
-
                 const optionId = zhToNum[rawId] || rawId;
 
                 if (optionText !== "") {
@@ -297,7 +445,6 @@
             }
         }
 
-        // 建立選項
         function addRadioButton(labelText, value, savedUserAnswer) {
             const container = document.getElementById('rgAnswersContainer');
             const label = document.createElement('label');
@@ -322,7 +469,6 @@
             container.appendChild(label);
         }
 
-        // 檢查目前答案
         function checkCurrentAnswer() {
             if (currentQuizList.length === 0) return;
 
@@ -343,7 +489,6 @@
             }
         }
 
-        // 下一題
         function clickNext() {
             checkCurrentAnswer();
 
@@ -356,7 +501,6 @@
             }
         }
 
-        // 統整計分
         function clickFinish() {
             checkCurrentAnswer();
 
@@ -373,7 +517,7 @@
             let summaryText = "<h2 style='text-align:center;'>測驗結果</h2>";
 
             if (wrongCount === 0) {
-                summaryText += "<p style='text-align:center; color: #34c759; font-size: 20px;'><b>恭喜你！全部答對！</b></p>";
+                summaryText += "<p style='text-align:center; color: var(--success-color); font-size: 20px;'><b>恭喜你！全部答對！</b></p>";
             } else {
                 summaryText += getString.quiz_wrong_count_text(wrongCount);
 
@@ -381,7 +525,7 @@
 
                 currentQuizList.forEach((q, index) => {
                     if (q.userAnswer.toUpperCase() !== q.answer.toUpperCase()) {
-                        errorReport += `<div style='margin-bottom: 15px; border-bottom: 1px solid #e8e8ed; padding-bottom:10px;'>`;
+                        errorReport += `<div style='margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom:10px;'>`;
                         errorReport += `<b>第 ${index + 1} 題：</b>${escapeHtml(q.questionText)}<br>`;
                         errorReport += `您的答案：<font color='red'>${escapeHtml(q.userAnswer || "未作答")}</font><br>`;
                         errorReport += `正確解答：<font color='green'><b>${escapeHtml(q.answer)}</b></font><br>`;
@@ -395,7 +539,7 @@
                 });
 
                 summaryText +=
-                    "<hr style='border:0; border-top:1px solid #d2d2d7;'><h3>錯題檢討：</h3>" +
+                    "<hr style='border:0; border-top:1px solid var(--border-color); margin: 15px 0;'><h3>錯題檢討：</h3>" +
                     errorReport;
             }
 
@@ -412,7 +556,6 @@
             document.getElementById('btnRestart').style.display = 'block';
         }
 
-        // HTML 安全處理
         function escapeHtml(value) {
             return String(value)
                 .replace(/&/g, '&amp;')
