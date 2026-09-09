@@ -1,0 +1,11 @@
+{
+  "name": "ABC題庫測驗程式",
+  "short_name": "刷題程式",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#0071e3",
+  "icons": [
+    { "src": "images/img.webp", "sizes": "192x192", "type": "image/webp" }
+  ]
+}
